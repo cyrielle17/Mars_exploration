@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARES-VII // Navigateur EVA Mont Sharp (Boxwork)</title>
+  <style>
+    /* =========================================================================
+       BLOC 1 : ERGONOMIE VISUELLE & CONTRASTE SUR FOND OCRE MARTIEN
+       Palette haute lisibilité (cyan, ambre, rouge alerte) sur fond sombre
+       ========================================================================= */
+    :root {
+      --bg-deep: #090d14;
+      --bg-panel: #101724;
+      --bg-card: #162032;
+      --border: #263652;
+      --text-main: #e6eefc;
+      --text-dim: #8da2c0;
+      --cyan: #38bdf8;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --orange: #f97316;
+      --red: #f43f5e;
+      --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+      --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Barre supérieure de mission */
+    header {
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .badge-mission {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .brand h1 {
+      font-size: 1.05rem;
+      letter-spacing: 0.4px;
+    }
+
+    .brand span {
+      color: var(--text-dim);
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+    }
+
+    .view-switcher {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 7px 13px;
+      border-radius: 6px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover { border-color: var(--cyan); }
+
+    button.active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    button.btn-play {
+      background: rgba(52, 211, 153, 0.18);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    button.btn-warn {
+      background: rgba(251, 191, 36, 0.15);
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    /* Grille principale : Zone de visualisation + Panneau de contrôle */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .viewport-container {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      width: 100%;
+      height: 520px;
+      background: #05070b;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Barre inférieure sous le canvas (Waypoints + Profil) */
+    .bottom-strip {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #0d131f;
+    }
+
+    .waypoints-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .wp-btn {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      padding: 5px 10px;
+    }
+
+    .wp-btn.current {
+      background: rgba(52, 211, 153, 0.22);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .profile-box {
+      height: 85px;
+      width: 100%;
+      background: #090d14;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    /* Panneau latéral droit (Calques NASA, Scénarios, Télémétrie) */
+    aside {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+
+    .panel-card h2 {
+      font-size: 0.84rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--cyan);
+      margin-bottom: 10px;
+      font-family: var(--font-mono);
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(38, 54, 82, 0.5);
+      font-size: 0.83rem;
+    }
+
+    .layer-item:last-child { border-bottom: none; }
+
+    .layer-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .control-row {
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+    }
+
+    .control-row label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      color: var(--text-dim);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--cyan);
+    }
+
+    select {
+      width: 100%;
+      background: var(--bg-card);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      border-radius: 5px;
+      font-size: 0.82rem;
+    }
+
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px;
+    }
+
+    .metric .m-title {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+    }
+
+    .metric .m-val {
+      font-size: 0.98rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+
+    .wp-info-box {
+      font-size: 0.82rem;
+      line-height: 1.45;
+      color: var(--text-main);
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 3px solid var(--cyan);
+      padding: 8px 10px;
+      border-radius: 4px;
+    }
+
+    /* Modale pédagogique des équations */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(4, 7, 12, 0.82);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--cyan);
+      border-radius: 10px;
+      max-width: 720px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .modal-box h3 {
+      color: var(--cyan);
+      margin-bottom: 12px;
+    }
+
+    .eq-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .eq-formula {
+      font-family: var(--font-mono);
+      color: var(--amber);
+      background: #090d14;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- EN-TÊTE DE NAVIGATION -->
+  <header>
+    <div class="brand">
+      <span class="badge-mission">ARES-VII // GALE CRATER</span>
+      <div>
+        <h1>Mont Sharp Boxwork EVA Navigator</h1>
+        <span>COORD: -4.74° S, 137.85° E | SCAPHANDRE xEMU + MINI-ROVER</span>
+      </div>
+    </div>
+
+    <div class="view-switcher">
+      <button id="btnViewHud" class="active" onclick="setViewMode('hud')">1. Visière Casque HUD (AR)</button>
+      <button id="btnViewMap" onclick="setViewMode('map')">2. Carte Orbitale Mars Trek</button>
+      <button id="btnSim" class="btn-play" onclick="toggleSimulation()">▶ Simuler EVA</button>
+      <button id="btnEds" class="btn-warn" onclick="activateEDS()">⚡ Activer EDS Visière</button>
+      <button onclick="toggleEquationsModal(true)">∑ Équations Physiques</button>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main>
+    <!-- ZONE DE VISUALISATION (HUD OU CARTE ORBITALE) -->
+    <section class="viewport-container">
+      <div class="canvas-wrapper">
+        <canvas id="mainCanvas"></canvas>
+      </div>
+
+      <!-- WAYPOINTS & PROFIL D'ÉLÉVATION -->
+      <div class="bottom-strip">
+        <div class="waypoints-bar">
+          <span style="font-size:0.78rem; color:var(--text-dim); font-family:var(--font-mono);">WAYPOINTS (1 350 m) :</span>
+          <button class="wp-btn current" id="wpBtn0" onclick="jumpToWaypoint(0)">WP1 Base Ares-VII</button>
+          <button class="wp-btn" id="wpBtn1" onclick="jumpToWaypoint(1)">WP2 Alvéole Sud (Sable)</button>
+          <button class="wp-btn" id="wpBtn2" onclick="jumpToWaypoint(2)">WP3 Crête Boxwork (CRISM)</button>
+          <button class="wp-btn" id="wpBtn3" onclick="jumpToWaypoint(3)">WP4 Escarpement (Abri RAD)</button>
+          <button class="wp-btn" id="wpBtn4" onclick="jumpToWaypoint(4)">WP5 Retour Ouest</button>
+        </div>
+        <div class="profile-box">
+          <canvas id="profileCanvas"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANNEAU LATÉRAL DE CONTRÔLE ET TÉLÉMÉTRIE -->
+    <aside>
+      <!-- FICHE DU POINT ACTUEL -->
+      <div class="panel-card">
+        <h2>Briefing Secteur Actif</h2>
+        <div class="wp-info-box" id="wpDescription">
+          <strong>WP1 — Base Ares-VII (0 m) :</strong> Plat rocheux à forte inertie thermique (I = 310). Calibration du lien radio avec le mini-rover éclaireur.
+        </div>
+      </div>
+
+      <!-- LES 5 COUCHES NASA -->
+      <div class="panel-card">
+        <h2>5 Couches Capteurs NASA</h2>
+        <div class="layer-item">
+          <label class="layer-label">
+            <input type="checkbox" id="layerHirise" checked onchange="renderAll()" />
+            <span class="dot" style="background:var(--red)"></span>
+            <span>1. HiRISE / MOLA (Pentes &gt; 20°)</span>
+          </label>
+        </div>
+        <div class="layer-item">
+          <label class="layer-label">
+            <input type="checkbox" id="layerThemis" checked onchange="renderAll()" />
+            <span class="dot" style="background:var(--orange)"></span>
+            <span>2. THEMIS IR (Sable meuble I &lt; 120)</span>
+          </label>
+        </div>
+        <div class="layer-item">
+          <label class="layer-label">
+            <input type="checkbox" id="layerCrism" checked onchange="renderAll()" />
+            <span class="dot" style="background:var(--cyan)"></span>
+            <span>3. CRISM (Sulfates &amp; Oxydes Fe)</span>
+          </label>
+        </div>
+        <div class="layer-item">
+          <label class="layer-label">
+            <input type="checkbox" id="layerRad" checked onchange="renderAll()" />
+            <span class="dot" style="background:var(--green)"></span>
+            <span>4. RAD / MAVEN (Abri radiologique)</span>
+          </label>
+        </div>
+        <div class="layer-item">
+          <label class="layer-label">
+            <input type="checkbox" id="layerMeda" checked onchange="renderAll()" />
+            <span class="dot" style="background:var(--amber)"></span>
+            <span>5. MEDA (Vent &amp; Opacité τ)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- PARAMÈTRES ENVIRONNEMENTAUX & ÉQUIPEMENT -->
+      <div class="panel-card">
+        <h2>Conditions &amp; Équipement</h2>
+
+        <div class="control-row">
+          <label><span>Mode Visière HUD :</span></label>
+          <select id="hudModeSelect" onchange="manualHudModeChange()">
+            <option value="AUTO">Automatique (selon terrain &amp; τ)</option>
+            <option value="TRANSIT">TRANSIT (Marche &amp; obstacles)</option>
+            <option value="SCIENCE">SCIENCE (Surbrillance CRISM)</option>
+            <option value="TEMPETE">TEMPÊTE (Vision Synthétique AR)</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label>
+            <span>Opacité Poussière τ (MEDA) :</span>
+            <strong id="tauLabel" style="color:var(--amber)">0.45</strong>
+          </label>
+          <input type="range" id="tauSlider" min="0.2" max="1.6" step="0.05" value="0.45" oninput="updateEnvironment()" />
+        </div>
+
+        <div class="control-row">
+          <label><span>Météo Spatiale (MAVEN) :</span></label>
+          <select id="solarSelect" onchange="updateEnvironment()">
+            <option value="CALME">Soleil Calme (GCR 0.027 mSv/h)</option>
+            <option value="FLARE_M">Éruption Classe M (1.8 mSv/h)</option>
+            <option value="SEP_X">Tempête Solaire SEP-X (14.5 mSv/h)</option>
+          </select>
+        </div>
+
+        <div class="control-row">
+          <label class="layer-label">
+            <input type="checkbox" id="roverSupport" checked onchange="updateEnvironment()" />
+            <span>Mini-rover porteur actif (-22% effort)</span>
+          </label>
+        </div>
+
+        <div class="control-row" style="margin-bottom:0;">
+          <label class="layer-label">
+            <input type="checkbox" id="showShortcut" checked onchange="renderAll()" />
+            <span>Afficher raccourci risqué (comparaison)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- TÉLÉMÉTRIE PHYSIQUE EN DIRECT -->
+      <div class="panel-card">
+        <h2>Télémétrie Scaphandre xEMU</h2>
+        <div class="telemetry-grid">
+          <div class="metric">
+            <div class="m-title">OXYGÈNE (650 g)</div>
+            <div class="m-val" id="statO2" style="color:var(--green)">100%</div>
+          </div>
+          <div class="metric">
+            <div class="m-title">VITESSE (g=3.72)</div>
+            <div class="m-val" id="statSpeed" style="color:var(--cyan)">0.92 m/s</div>
+          </div>
+          <div class="metric">
+            <div class="m-title">DOSE EFF. RAD</div>
+            <div class="m-val" id="statDose" style="color:var(--text-main)">0.024 mSv/h</div>
+          </div>
+          <div class="metric">
+            <div class="m-title">ABRI ROCHEUX α</div>
+            <div class="m-val" id="statShield" style="color:var(--green)">12%</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- MODALE DES ÉQUATIONS PHYSIQUES -->
+  <div class="modal-backdrop" id="eqModal">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3>Modèles Physiques Intégrés (Zéro Boîte Noire)</h3>
+        <button onclick="toggleEquationsModal(false)">Fermer ✕</button>
+      </div>
+
+      <div class="eq-card">
+        <strong>1. Vitesse de marche sur Mars (Tobler calibré scaphandre xEMU, g = 3,72 m/s²) :</strong><br/>
+        <span class="eq-formula">v(θ) = 1.1 × exp(-3.5 × |tan(θ) + 0.05|)</span><br/>
+        Au-delà de <strong>θ = 20°</strong> (pente extraite du MNT HiRISE), le franchissement est interdit et surligné en rouge.
+      </div>
+
+      <div class="eq-card">
+        <strong>2. Inertie Thermique (Odyssey THEMIS IR) :</strong><br/>
+        <span class="eq-formula">I = √(k · ρ · c_p)   [J·m⁻²·K⁻¹·s⁻¹/²]</span><br/>
+        Les crêtes <em>boxwork</em> rocheuses ont <strong>I &gt; 250</strong> (sol porteur). Le fond des alvéoles rempli de sable fin a <strong>I &lt; 120</strong> (trame orange : risque d'enlisement du mini-rover).
+      </div>
+
+      <div class="eq-card">
+        <strong>3. Atténuation Radiologique par le Relief (Curiosity RAD / MAVEN) :</strong><br/>
+        <span class="eq-formula">D_eff = D_0 × (1 - 0.85 × sin(α))</span><br/>
+        Plus l'angle d'élévation <strong>α</strong> des parois du Mont Sharp est grand (ex. escarpement WP4), plus la roche bloque les rayons cosmiques.
+      </div>
+
+      <div class="eq-card">
+        <strong>4. Opacité Atmosphérique &amp; Vision Synthétique (Perseverance MEDA) :</strong><br/>
+        <span class="eq-formula">I = I_0 × exp(-τ / cos(θ_z))</span><br/>
+        Dès que la profondeur optique <strong>τ &gt; 0.8</strong>, la visibilité chute et le HUD active automatiquement la <strong>Vision Synthétique</strong> (contours topographiques renforcés).
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       BLOC 2 : MODÈLE NUMÉRIQUE DU TERRAIN MONT SHARP (-4.74° S, 137.85° E)
+       Grille 1200m x 900m avec réseau boxwork, waypoints et chemins comparés
+       ========================================================================= */
+    const TERRAIN_W = 1200; // mètres
+    const TERRAIN_H = 900;  // mètres
+
+    // Les 5 Waypoints de la boucle sécurisée (1 350 m)
+    const WAYPOINTS = [
+      {
+        id: 'WP1', name: 'Base Ares-VII', x: 140, y: 740, z: 0,
+        slope: 3, inertia: 310, crism: 0.15, shieldAngle: 8, mode: 'TRANSIT',
+        desc: '<strong>WP1 — Base Ares-VII (0 m, z = 0 m) :</strong> Plat rocheux à forte inertie thermique (I = 310). Calibration du lien radio avec le mini-rover en mode SUIVI.'
+      },
+      {
+        id: 'WP2', name: 'Bordure Alvéole Sud', x: 410, y: 610, z: 18,
+        slope: 11, inertia: 265, crism: 0.42, shieldAngle: 15, mode: 'TRANSIT',
+        desc: '<strong>WP2 — Bordure Alvéole Sud (+320 m, z = +18 m) :</strong> Test d’évitement. Le centre de la cuvette contient du sable meuble (I = 95) : le tracé contourne par la crête dure.'
+      },
+      {
+        id: 'WP3', name: 'Crête Principale Boxwork', x: 690, y: 420, z: 42,
+        slope: 14, inertia: 340, crism: 0.92, shieldAngle: 22, mode: 'SCIENCE',
+        desc: '<strong>WP3 — Crête Principale Boxwork (+610 m, z = +42 m) :</strong> Cible scientifique n°1. Pic spectral CRISM en sulfates hydratés et oxydes de fer. Analyse par le mini-rover.'
+      },
+      {
+        id: 'WP4', name: 'Escarpement Gediz', x: 960, y: 260, z: 58,
+        slope: 16, inertia: 360, crism: 0.78, shieldAngle: 42, mode: 'SCIENCE',
+        desc: '<strong>WP4 — Escarpement Gediz (+890 m, z = +58 m) :</strong> Paroi verticale de 14 m (pente paroi 68°). Masquage du ciel α = 42° offrant un abri naturel réduisant les radiations de 34%.'
+      },
+      {
+        id: 'WP5', name: 'Corridor Retour Ouest', x: 480, y: 310, z: 24,
+        slope: 7, inertia: 290, crism: 0.30, shieldAngle: 14, mode: 'TRANSIT',
+        desc: '<strong>WP5 — Corridor Retour Ouest (+1 120 m → Base) :</strong> Crête descendante continue vers l’atterrisseur avant le seuil critique de 50% d’O₂.'
+      }
+    ];
+
+    // Tracé sécurisé détaillé (suit les crêtes rocheuses boxwork, évite I < 120 et θ > 20°)
+    const SAFE_ROUTE = [
+      { x: 140, y: 740, z: 0, slope: 3, shield: 8, dist: 0 },
+      { x: 260, y: 710, z: 8, slope: 7, shield: 10, dist: 130 },
+      { x: 350, y: 690, z: 13, slope: 9, shield: 12, dist: 225 },
+      { x: 410, y: 610, z: 18, slope: 11, shield: 15, dist: 320 }, // WP2
+      { x: 520, y: 580, z: 27, slope: 12, shield: 18, dist: 440 },
+      { x: 610, y: 500, z: 35, slope: 13, shield: 20, dist: 550 },
+      { x: 690, y: 420, z: 42, slope: 14, shield: 22, dist: 650 }, // WP3
+      { x: 830, y: 370, z: 50, slope: 15, shield: 30, dist: 800 },
+      { x: 960, y: 260, z: 58, slope: 16, shield: 42, dist: 960 }, // WP4
+      { x: 740, y: 230, z: 41, slope: 10, shield: 25, dist: 1180 },
+      { x: 480, y: 310, z: 24, slope: 7, shield: 14, dist: 1250 }, // WP5
+      { x: 270, y: 510, z: 10, slope: 6, shield: 10, dist: 1310 },
+      { x: 140, y: 740, z: 0, slope: 3, shield: 8, dist: 1350 }
+    ];
+
+    // Raccourci direct risqué (coupe tout droit dans les cuvettes de sable meuble)
+    const RISKY_SHORTCUT = [
+      { x: 140, y: 740 },
+      { x: 420, y: 550 }, // Traverse le piège à sable THEMIS I = 85
+      { x: 690, y: 420 },
+      { x: 960, y: 260 }
+    ];
+
+    // Zones de danger pré-calculées (Alvéoles sableuses THEMIS & Escarpements HiRISE)
+    const SAND_POCKETS = [
+      { x: 430, y: 530, rx: 95, ry: 65, I: 85 },
+      { x: 670, y: 590, rx: 110, ry: 75, I: 92 },
+      { x: 660, y: 310, rx: 85, ry: 55, I: 104 },
+      { x: 330, y: 440, rx: 90, ry: 70, I: 98 }
+    ];
+
+    const STEEP_HAZARDS = [
+      { x: 990, y: 210, rx: 130, ry: 45, slope: 68 }, // Paroi escarpement Gediz
+      { x: 540, y: 450, rx: 45, ry: 35, slope: 26 },
+      { x: 820, y: 460, rx: 55, ry: 40, slope: 24 }
+    ];
+
+    /* =========================================================================
+       BLOC 3 : MOTEUR PHYSIQUE & ÉTAT DE LA SIMULATION EVA
+       ========================================================================= */
+    const state = {
+      viewMode: 'hud',        // 'hud' ou 'map'
+      playing: false,
+      progress: 0,            // 0.0 à 1.0 le long de SAFE_ROUTE
+      currentWpIndex: 0,
+      o2Grams: 650,           // Réserve PLSS totale : 650 g
+      totalDoseMsv: 0.012,
+      dustOnVisor: 0.18,      // 0 à 1 (nettoyé par EDS)
+      tau: 0.45,              // Opacité atmosphérique MEDA
+      windSpeed: 11.4,        // m/s
+      solarBaseRate: 0.027,   // mSv/h (GCR nominal)
+      roverActive: true,
+      manualMode: 'AUTO'
+    };
+
+    // Interpolation de la position de l'astronaute le long du tracé sécurisé
+    function getAstronautTelemetry() {
+      const totalSegs = SAFE_ROUTE.length - 1;
+      const scaled = state.progress * totalSegs;
+      const idx = Math.min(Math.floor(scaled), totalSegs - 1);
+      const t = scaled - idx;
+
+      const p1 = SAFE_ROUTE[idx];
+      const p2 = SAFE_ROUTE[idx + 1];
+
+      const x = p1.x + (p2.x - p1.x) * t;
+      const y = p1.y + (p2.y - p1.y) * t;
+      const z = p1.z + (p2.z - p1.z) * t;
+      const slope = p1.slope + (p2.slope - p1.slope) * t;
+      const shield = p1.shield + (p2.shield - p1.shield) * t;
+      const dist = p1.dist + (p2.dist - p1.dist) * t;
+
+      // Cap en degrés
+      const heading = (Math.atan2(p2.x - p1.x, -(p2.y - p1.y)) * 180 / Math.PI + 360) % 360;
+
+      // Équation de vitesse de Tobler calibrée Mars (v0 = 1.1 m/s)
+      const thetaRad = slope * Math.PI / 180;
+      const roverFactor = state.roverActive ? 1.0 : 0.84; // Sans mini-rover, charge +35kg ralentit
+      const speed = 1.1 * Math.exp(-3.5 * Math.abs(Math.tan(thetaRad) + 0.05)) * roverFactor;
+
+      // Équation d'atténuation radiologique par le relief
+      const alphaRad = shield * Math.PI / 180;
+      const shieldReduction = 0.85 * Math.sin(alphaRad);
+      const effDoseRate = state.solarBaseRate * (1 - shieldReduction);
+
+      // Mode HUD actif (bascule auto en TEMPÊTE si τ > 0.8)
+      let activeHudMode = state.manualMode;
+      if (activeHudMode === 'AUTO') {
+        if (state.tau > 0.8 || state.solarBaseRate > 2.0) {
+          activeHudMode = 'TEMPETE';
+        } else {
+          activeHudMode = WAYPOINTS[state.currentWpIndex].mode;
+        }
+      }
+
+      return { x, y, z, slope, shield, shieldReduction, dist, heading, speed, effDoseRate, activeHudMode };
+    }
+
+    function updateEnvironment() {
+      state.tau = parseFloat(document.getElementById('tauSlider').value);
+      document.getElementById('tauLabel').textContent = state.tau.toFixed(2);
+      state.windSpeed = +(8 + state.tau * 12).toFixed(1);
+
+      const solarVal = document.getElementById('solarSelect').value;
+      state.solarBaseRate = solarVal === 'CALME' ? 0.027 : (solarVal === 'FLARE_M' ? 1.8 : 14.5);
+
+      state.roverActive = document.getElementById('roverSupport').checked;
+      refreshStatsUI();
+      renderAll();
+    }
+
+    function manualHudModeChange() {
+      state.manualMode = document.getElementById('hudModeSelect').value;
+      refreshStatsUI();
+      renderAll();
+    }
+
+    function activateEDS() {
+      state.dustOnVisor = 0.02;
+      renderAll();
+    }
+
+    function refreshStatsUI() {
+      const tel = getAstronautTelemetry();
+      const o2Pct = Math.max(0, Math.round((state.o2Grams / 650) * 100));
+      const o2El = document.getElementById('statO2');
+      o2El.textContent = o2Pct + '% (' + Math.round(state.o2Grams) + 'g)';
+      o2El.style.color = o2Pct < 50 ? 'var(--red)' : 'var(--green)';
+
+      document.getElementById('statSpeed').textContent = tel.speed.toFixed(2) + ' m/s';
+
+      const doseEl = document.getElementById('statDose');
+      doseEl.textContent = tel.effDoseRate.toFixed(3) + ' mSv/h';
+      doseEl.style.color = tel.effDoseRate > 2.0 ? 'var(--red)' : (tel.effDoseRate > 0.1 ? 'var(--amber)' : 'var(--text-main)');
+
+      document.getElementById('statShield').textContent = '-' + Math.round(tel.shieldReduction * 100) + '% (α=' + Math.round(tel.shield) + '°)';
+    }
+
+    /* =========================================================================
+       BLOC 4 : RENDU VISIÈRE HUD AR (POV) & CARTE ORBITALE MARS TREK
+       ========================================================================= */
+    const mainCanvas = document.getElementById('mainCanvas');
+    const ctx = mainCanvas.getContext('2d');
+    const profileCanvas = document.getElementById('profileCanvas');
+    const pCtx = profileCanvas.getContext('2d');
+
+    function resizeCanvases() {
+      const rect = mainCanvas.parentElement.getBoundingClientRect();
+      mainCanvas.width = rect.width * window.devicePixelRatio;
+      mainCanvas.height = rect.height * window.devicePixelRatio;
+      ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+
+      const pRect = profileCanvas.parentElement.getBoundingClientRect();
+      profileCanvas.width = pRect.width * window.devicePixelRatio;
+      profileCanvas.height = pRect.height * window.devicePixelRatio;
+      pCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    }
+
+    window.addEventListener('resize', () => { resizeCanvases(); renderAll(); });
+
+    function setViewMode(mode) {
+      state.viewMode = mode;
+      document.getElementById('btnViewHud').classList.toggle('active', mode === 'hud');
+      document.getElementById('btnViewMap').classList.toggle('active', mode === 'map');
+      renderAll();
+    }
+
+    function jumpToWaypoint(wpIdx) {
+      state.currentWpIndex = wpIdx;
+      const wpProgressMap = [0.0, 0.25, 0.50, 0.67, 0.84];
+      state.progress = wpProgressMap[wpIdx];
+
+      document.querySelectorAll('.wp-btn').forEach((b, i) => b.classList.toggle('current', i === wpIdx));
+      document.getElementById('wpDescription').innerHTML = WAYPOINTS[wpIdx].desc;
+      refreshStatsUI();
+      renderAll();
+    }
+
+    function toggleSimulation() {
+      state.playing = !state.playing;
+      const btn = document.getElementById('btnSim');
+      btn.textContent = state.playing ? '❚❚ Pause EVA' : '▶ Simuler EVA';
+    }
+
+    function toggleEquationsModal(open) {
+      document.getElementById('eqModal').classList.toggle('open', open);
+    }
+
+    // Boucle d'animation (progression EVA)
+    let lastTime = 0;
+    function animationLoop(ts) {
+      if (!lastTime) lastTime = ts;
+      const dt = (ts - lastTime) / 1000;
+      lastTime = ts;
+
+      if (state.playing) {
+        state.progress += dt * 0.035;
+        if (state.progress >= 1) {
+          state.progress = 0;
+          state.o2Grams = 650;
+        }
+        // Consommation O2 (pénalité +22% sans mini-rover)
+        const metPenalty = state.roverActive ? 1.0 : 1.22;
+        state.o2Grams = Math.max(120, state.o2Grams - dt * 4.2 * metPenalty);
+        state.dustOnVisor = Math.min(0.85, state.dustOnVisor + dt * 0.015 * state.tau);
+
+        // Mise à jour waypoint actif
+        const newWp = state.progress < 0.2 ? 0 : state.progress < 0.42 ? 1 : state.progress < 0.62 ? 2 : state.progress < 0.8 ? 3 : 4;
+        if (newWp !== state.currentWpIndex) {
+          state.currentWpIndex = newWp;
+          document.querySelectorAll('.wp-btn').forEach((b, i) => b.classList.toggle('current', i === newWp));
+          document.getElementById('wpDescription').innerHTML = WAYPOINTS[newWp].desc;
+        }
+
+        refreshStatsUI();
+        renderAll();
+      }
+      requestAnimationFrame(animationLoop);
+    }
+
+    function renderAll() {
+      const w = mainCanvas.width / window.devicePixelRatio;
+      const h = mainCanvas.height / window.devicePixelRatio;
+      ctx.clearRect(0, 0, w, h);
+
+      if (state.viewMode === 'hud') {
+        renderVisorHUD(w, h);
+      } else {
+        renderOrbitalMap(w, h);
+      }
+      renderElevationProfile();
+    }
+
+    /* -------------------------------------------------------------------------
+       RENDU 1 : VISIÈRE CASQUE xEMU EN RÉALITÉ AUGMENTÉE (POV PREMIÈRE PERSONNE)
+       ------------------------------------------------------------------------- */
+    function renderVisorHUD(w, h) {
+      const tel = getAstronautTelemetry();
+      const showHirise = document.getElementById('layerHirise').checked;
+      const showThemis = document.getElementById('layerThemis').checked;
+      const showCrism = document.getElementById('layerCrism').checked;
+      const showRad = document.getElementById('layerRad').checked;
+      const showMeda = document.getElementById('layerMeda').checked;
+
+      const syntheticBoost = tel.activeHudMode === 'TEMPETE';
+      const horizonY = h * 0.42;
+
+      // 1. Ciel martien atténué selon la loi de Beer-Lambert (opacité τ)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
+      const dustFactor = Math.min(1, (state.tau - 0.2) / 1.4);
+      skyGrad.addColorStop(0, syntheticBoost ? '#1a1412' : '#2a1d17');
+      skyGrad.addColorStop(1, `rgb(${Math.round(135 + dustFactor * 60)}, ${Math.round(88 + dustFactor * 35)}, ${Math.round(62 + dustFactor * 20)})`);
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, horizonY);
+
+      // 2. Massif du Mont Sharp en arrière-plan
+      ctx.fillStyle = syntheticBoost ? '#261b16' : '#5e3a28';
+      ctx.beginPath();
+      ctx.moveTo(0, horizonY);
+      ctx.lineTo(w * 0.18, horizonY - 58);
+      ctx.lineTo(w * 0.42, horizonY - 35);
+      ctx.lineTo(w * 0.72, horizonY - 82);
+      ctx.lineTo(w, horizonY - 40);
+      ctx.lineTo(w, horizonY);
+      ctx.closePath();
+      ctx.fill();
+
+      // 3. Sol ocre martien (premier plan)
+      const groundGrad = ctx.createLinearGradient(0, horizonY, 0, h);
+      groundGrad.addColorStop(0, '#7c4930');
+      groundGrad.addColorStop(1, '#3d2216');
+      ctx.fillStyle = groundGrad;
+      ctx.fillRect(0, horizonY, w, h - horizonY);
+
+      // 4. Grille perspective boxwork au sol (projection AR conforme)
+      const cx = w * 0.5;
+      ctx.strokeStyle = syntheticBoost ? 'rgba(56, 189, 248, 0.45)' : 'rgba(255, 200, 160, 0.14)';
+      ctx.lineWidth = syntheticBoost ? 1.5 : 1;
+
+      for (let i = -5; i <= 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx + i * 35, horizonY);
+        ctx.lineTo(cx + i * 190, h);
+        ctx.stroke();
+      }
+      for (let row = 1; row <= 6; row++) {
+        const yRow = horizonY + Math.pow(row / 6, 1.5) * (h - horizonY);
+        ctx.beginPath();
+        ctx.moveTo(0, yRow);
+        ctx.lineTo(w, yRow);
+        ctx.stroke();
+      }
+
+      // 5. Calque THEMIS au sol : cuvette de sable meuble (trame ambre/orange à gauche)
+      if (showThemis) {
+        ctx.fillStyle = syntheticBoost ? 'rgba(249, 115, 22, 0.42)' : 'rgba(249, 115, 22, 0.25)';
+        ctx.strokeStyle = '#f97316';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(w * 0.27, h * 0.73, 115, 42, -0.15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fdba74';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText('THEMIS: SABLE MEUBLE (I=92)', w * 0.27 - 82, h * 0.73 + 4);
+      }
+
+      // 6. Calque HiRISE au sol : escarpement > 20° (hachures rouges à droite)
+      if (showHirise) {
+        ctx.fillStyle = syntheticBoost ? 'rgba(244, 63, 94, 0.45)' : 'rgba(244, 63, 94, 0.26)';
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.68, h * 0.56);
+        ctx.lineTo(w * 0.92, h * 0.62);
+        ctx.lineTo(w * 0.96, h * 0.84);
+        ctx.lineTo(w * 0.64, h * 0.78);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fda4af';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText('HiRISE: PENTE CRITIQUE > 20°', w * 0.68, h * 0.70);
+      }
+
+      // 7. Calque CRISM : crête boxwork minéralisée (halo cyan verrouillé sur la crête)
+      if (showCrism && (tel.activeHudMode === 'SCIENCE' || state.manualMode === 'AUTO')) {
+        const ridgeAlpha = tel.activeHudMode === 'SCIENCE' ? 0.85 : 0.35;
+        ctx.strokeStyle = `rgba(56, 189, 248, ${ridgeAlpha})`;
+        ctx.fillStyle = `rgba(56, 189, 248, ${ridgeAlpha * 0.25})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.41, h * 0.54);
+        ctx.lineTo(w * 0.49, h * 0.46);
+        ctx.lineTo(w * 0.58, h * 0.53);
+        ctx.lineTo(w * 0.55, h * 0.60);
+        ctx.lineTo(w * 0.43, h * 0.60);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        if (tel.activeHudMode === 'SCIENCE') {
+          ctx.fillStyle = '#7dd3fc';
+          ctx.font = 'bold 11px monospace';
+          ctx.fillText('CRISM: SULFATES HYDRATÉS + Fe₂O₃ (92%)', w * 0.39, h * 0.44);
+        }
+      }
+
+      // 8. Corridor de marche sécurisé (deux lignes vertes pointillées au sol)
+      ctx.save();
+      ctx.setLineDash([8, 6]);
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 75, h);
+      ctx.quadraticCurveTo(cx - 35, h * 0.72, cx - 12, h * 0.56);
+      ctx.moveTo(cx + 75, h);
+      ctx.quadraticCurveTo(cx + 35, h * 0.72, cx + 12, h * 0.56);
+      ctx.stroke();
+      ctx.restore();
+
+      // 9. Mini-rover éclaireur devant l'astronaute (si actif)
+      if (state.roverActive) {
+        const rx = cx;
+        const ry = h * 0.63;
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(rx - 22, ry - 12, 44, 16);
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(rx - 14, ry - 20, 28, 8); // Capteur CRISM/LiDAR
+        // Roues
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(rx - 26, ry, 8, 10);
+        ctx.fillRect(rx + 18, ry, 8, 10);
+
+        ctx.fillStyle = '#34d399';
+        ctx.font = '10px monospace';
+        ctx.fillText('MINI-ROVER [SUIVI 6.4m]', rx - 58, ry - 26);
+      }
+
+      // Voile de poussière atmosphérique + dépôt électrostatique visière
+      if (state.tau > 0.5 || state.dustOnVisor > 0.1) {
+        const haze = Math.min(0.42, (state.tau - 0.3) * 0.25 + state.dustOnVisor * 0.25);
+        if (haze > 0) {
+          ctx.fillStyle = `rgba(194, 120, 72, ${haze})`;
+          ctx.fillRect(0, 0, w, h);
+        }
+      }
+
+      // =======================================================================
+      // AFFICHAGES PÉRIPHÉRIQUES NON-CONFORMES (LAISSANT LE CENTRE 20° LIBRE)
+      // =======================================================================
+
+      // Repère discret de zone fovéale centrale libre
+      ctx.strokeStyle = 'rgba(230, 238, 252, 0.18)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx - 110, h * 0.43, 220, 150);
+
+      // A. Bandeau Supérieur : Couche 4 RAD / MAVEN
+      ctx.fillStyle = 'rgba(9, 13, 20, 0.78)';
+      ctx.fillRect(14, 12, w - 28, 34);
+      ctx.strokeStyle = tel.effDoseRate > 2.0 ? '#f43f5e' : '#263652';
+      ctx.strokeRect(14, 12, w - 28, 34);
+
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = showRad ? (tel.effDoseRate > 2.0 ? '#f43f5e' : '#34d399') : '#64748b';
+      const radText = showRad
+        ? `[RAD/MAVEN] DOSE: ${tel.effDoseRate.toFixed(3)} mSv/h | ABRI ROCHEUX: -${Math.round(tel.shieldReduction * 100)}% | MODE: ${tel.activeHudMode}`
+        : '[RAD/MAVEN] COUCHE DÉSACTIVÉE';
+      ctx.fillText(radText, 24, 33);
+
+      // B. Colonne Gauche : Scaphandre + Couche 5 MEDA
+      ctx.fillStyle = 'rgba(9, 13, 20, 0.76)';
+      ctx.fillRect(14, 58, 178, 150);
+      ctx.strokeStyle = '#263652';
+      ctx.strokeRect(14, 58, 178, 150);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('[SCAPHANDRE xEMU]', 24, 76);
+      ctx.fillStyle = '#e6eefc';
+      ctx.fillText(`O2  : ${Math.round((state.o2Grams / 650) * 100)}% (${Math.round(state.o2Grams)}g)`, 24, 94);
+      ctx.fillText(`VIT : ${tel.speed.toFixed(2)} m/s`, 24, 111);
+
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillText('[MEDA MÉTÉO]', 24, 136);
+      ctx.fillStyle = showMeda ? '#e6eefc' : '#64748b';
+      ctx.fillText(`VENT: ${state.windSpeed} m/s ANAB.`, 24, 154);
+      ctx.fillText(`TAU : ${state.tau.toFixed(2)} ${state.tau > 0.8 ? '(SYNTH!)' : '(CLAIR)'}`, 24, 171);
+      ctx.fillText(`SALT: ${state.windSpeed > 18 ? 'ACTIVE' : 'FAIBLE'}`, 24, 188);
+
+      // C. Colonne Droite : Mini-rover & Bouclier EDS
+      ctx.fillStyle = 'rgba(9, 13, 20, 0.76)';
+      ctx.fillRect(w - 192, 58, 178, 130);
+      ctx.strokeStyle = '#263652';
+      ctx.strokeRect(w - 192, 58, 178, 130);
+
+      ctx.fillStyle = '#34d399';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('[MINI-ROVER]', w - 182, 76);
+      ctx.fillStyle = '#e6eefc';
+      ctx.fillText(`ETAT: ${state.roverActive ? 'ACTIF (35kg)' : 'HORS LIGNE'}`, w - 182, 94);
+      ctx.fillText(`LIEN: ${state.roverActive ? '99% OK' : 'AUCUN'}`, w - 182, 111);
+
+      ctx.fillStyle = state.dustOnVisor > 0.45 ? '#fbbf24' : '#38bdf8';
+      ctx.fillText('[EDS VISIÈRE]', w - 182, 136);
+      ctx.fillStyle = '#e6eefc';
+      ctx.fillText(`POUSSIÈRE: ${Math.round(state.dustOnVisor * 100)}%`, w - 182, 154);
+      ctx.fillText(state.dustOnVisor > 0.45 ? '-> CLIQUER EDS!' : '-> OPTIQUE CLAIRE', w - 182, 171);
+
+      // D. Arc Inférieur : Ruban de Cap
+      ctx.fillStyle = 'rgba(9, 13, 20, 0.82)';
+      ctx.fillRect(w * 0.22, h - 40, w * 0.56, 28);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.strokeRect(w * 0.22, h - 40, w * 0.56, 28);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`◄ ${(Math.round(tel.heading - 25 + 360) % 360)}° ──── [ CAP : ${Math.round(tel.heading)}° | DIST : ${Math.round(tel.dist)}m ] ──── ${(Math.round(tel.heading + 25) % 360)}° ►`, cx, h - 22);
+      ctx.textAlign = 'left';
+    }
+
+    /* -------------------------------------------------------------------------
+       RENDU 2 : CARTE ORBITALE TACTIQUE (MARS TREK GIS 5 CALQUES)
+       ------------------------------------------------------------------------- */
+    function renderOrbitalMap(w, h) {
+      const tel = getAstronautTelemetry();
+      const showHirise = document.getElementById('layerHirise').checked;
+      const showThemis = document.getElementById('layerThemis').checked;
+      const showCrism = document.getElementById('layerCrism').checked;
+      const showRad = document.getElementById('layerRad').checked;
+      const showShortcut = document.getElementById('showShortcut').checked;
+
+      const sx = (x) => (x / TERRAIN_W) * w;
+      const sy = (y) => (y / TERRAIN_H) * h;
+
+      // Fond orbital rocheux (MRO HiRISE base)
+      ctx.fillStyle = '#2d1c14';
+      ctx.fillRect(0, 0, w, h);
+
+      // Grille métrique Mars Trek
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
+      for (let gx = 0; gx <= TERRAIN_W; gx += 100) {
+        ctx.beginPath(); ctx.moveTo(sx(gx), 0); ctx.lineTo(sx(gx), h); ctx.stroke();
+      }
+      for (let gy = 0; gy <= TERRAIN_H; gy += 100) {
+        ctx.beginPath(); ctx.moveTo(0, sy(gy)); ctx.lineTo(w, sy(gy)); ctx.stroke();
+      }
+
+      // Réseau polygonal des crêtes boxwork (roche dure indurée)
+      ctx.strokeStyle = showCrism ? 'rgba(56, 189, 248, 0.55)' : 'rgba(180, 130, 95, 0.45)';
+      ctx.lineWidth = showCrism ? 3 : 2;
+      const ridges = [
+        [[140, 740], [350, 690], [410, 610], [520, 580], [690, 420], [960, 260]],
+        [[410, 610], [310, 490], [480, 310], [740, 230], [960, 260]],
+        [[520, 580], [610, 500], [690, 420], [830, 370], [960, 260]],
+        [[480, 310], [270, 510], [140, 740]]
+      ];
+      ridges.forEach(poly => {
+        ctx.beginPath();
+        poly.forEach((pt, idx) => idx === 0 ? ctx.moveTo(sx(pt[0]), sy(pt[1])) : ctx.lineTo(sx(pt[0]), sy(pt[1])));
+        ctx.stroke();
+      });
+
+      // Calque 2 : Cuvettes de sable meuble THEMIS (I < 120)
+      if (showThemis) {
+        SAND_POCKETS.forEach(p => {
+          ctx.fillStyle = 'rgba(249, 115, 22, 0.30)';
+          ctx.strokeStyle = '#f97316';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(sx(p.x), sy(p.y), sx(p.rx), sy(p.ry), 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#fdba74';
+          ctx.font = '10px monospace';
+          ctx.fillText(`I=${p.I}`, sx(p.x) - 16, sy(p.y) + 3);
+        });
+      }
+
+      // Calque 1 : Escarpements HiRISE > 20°
+      if (showHirise) {
+        STEEP_HAZARDS.forEach(st => {
+          ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+          ctx.strokeStyle = '#f43f5e';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.ellipse(sx(st.x), sy(st.y), sx(st.rx), sy(st.ry), -0.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#fda4af';
+          ctx.font = 'bold 10px monospace';
+          ctx.fillText(`θ=${st.slope}°`, sx(st.x) - 18, sy(st.y) + 3);
+        });
+      }
+
+      // Calque 4 : Zone d'abri radiologique RAD au pied de WP4
+      if (showRad) {
+        ctx.strokeStyle = '#34d399';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(sx(960), sy(260), 42, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#34d399';
+        ctx.font = '10px monospace';
+        ctx.fillText('ABRI RAD -34%', sx(960) - 45, sy(260) + 52);
+      }
+
+      // Raccourci direct risqué (ligne rouge pointillée)
+      if (showShortcut) {
+        ctx.save();
+        ctx.setLineDash([6, 6]);
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        RISKY_SHORTCUT.forEach((pt, idx) => idx === 0 ? ctx.moveTo(sx(pt.x), sy(pt.y)) : ctx.lineTo(sx(pt.x), sy(pt.y)));
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Tracé sécurisé EVA (ligne verte continue)
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      SAFE_ROUTE.forEach((pt, idx) => idx === 0 ? ctx.moveTo(sx(pt.x), sy(pt.y)) : ctx.lineTo(sx(pt.x), sy(pt.y)));
+      ctx.stroke();
+
+      // Marqueurs des 5 Waypoints
+      WAYPOINTS.forEach((wp, i) => {
+        const px = sx(wp.x);
+        const py = sy(wp.y);
+        ctx.fillStyle = i === state.currentWpIndex ? '#34d399' : '#0f172a';
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#e6eefc';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`${wp.id}`, px + 10, py + 4);
+      });
+
+      // Position en temps réel de l'astronaute + mini-rover
+      const ax = sx(tel.x);
+      const ay = sy(tel.y);
+      ctx.fillStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(ax, ay, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#090d14';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Légende carte orbitale
+      ctx.fillStyle = 'rgba(9, 13, 20, 0.85)';
+      ctx.fillRect(12, 12, 315, 52);
+      ctx.strokeStyle = '#263652';
+      ctx.strokeRect(12, 12, 315, 52);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('MARS TREK GIS // MONT SHARP (1200m x 900m)', 22, 30);
+      ctx.fillStyle = '#34d399';
+      ctx.fillText('━━ Tracé Sécurisé (1350m)   ┄┄ Raccourci Risqué', 22, 48);
+    }
+
+    /* -------------------------------------------------------------------------
+       RENDU 3 : PROFIL D'ÉLÉVATION TOPOGRAPHIQUE (MOLA / HiRISE)
+       ------------------------------------------------------------------------- */
+    function renderElevationProfile() {
+      const w = profileCanvas.width / window.devicePixelRatio;
+      const h = profileCanvas.height / window.devicePixelRatio;
+      pCtx.clearRect(0, 0, w, h);
+
+      const padL = 36, padR = 16, padT = 14, padB = 18;
+      const plotW = w - padL - padR;
+      const plotH = h - padT - padB;
+
+      // Courbe d'altitude z(d)
+      pCtx.beginPath();
+      SAFE_ROUTE.forEach((pt, i) => {
+        const px = padL + (pt.dist / 1350) * plotW;
+        const py = padT + plotH - (pt.z / 65) * plotH;
+        i === 0 ? pCtx.moveTo(px, py) : pCtx.lineTo(px, py);
+      });
+      pCtx.strokeStyle = '#38bdf8';
+      pCtx.lineWidth = 2;
+      pCtx.stroke();
+
+      // Remplissage sous courbe
+      pCtx.lineTo(padL + plotW, padT + plotH);
+      pCtx.lineTo(padL, padT + plotH);
+      pCtx.closePath();
+      pCtx.fillStyle = 'rgba(56, 189, 248, 0.14)';
+      pCtx.fill();
+
+      // Curseur astronaute sur le profil
+      const tel = getAstronautTelemetry();
+      const cx = padL + (tel.dist / 1350) * plotW;
+      const cy = padT + plotH - (tel.z / 65) * plotH;
+      pCtx.fillStyle = '#fbbf24';
+      pCtx.beginPath();
+      pCtx.arc(cx, cy, 5, 0, Math.PI * 2);
+      pCtx.fill();
+
+      pCtx.fillStyle = '#8da2c0';
+      pCtx.font = '10px monospace';
+      pCtx.fillText('+60m', 4, padT + 6);
+      pCtx.fillText('0m', 14, padT + plotH);
+      pCtx.fillText(`PROFIL TOPO HiRISE — ALTITUDE ACTUELLE: +${Math.round(tel.z)} m | PENTE: ${Math.round(tel.slope)}°`, padL + 8, 11);
+    }
+
+    // Initialisation au chargement
+    resizeCanvases();
+    refreshStatsUI();
+    renderAll();
+    requestAnimationFrame(animationLoop);
+  </script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+# Dossier de Mission ARES-VII : Exploration des Formations Boxwork (Mont Sharp)
+
+## 1. Contexte géologique et objectif scientifique
+Le cratère Gale ($154\text{ km}$ de diamètre, coord. `-4.74° S, 137.85° E`) a abrité un vaste système lacustre il y a environ $3,8\text{ milliards d'années}$. Les strates sédimentaires exposées sur les flancs du **Mont Sharp (*Aeolis Mons*)** constituent une archive continue de la transition climatique de Mars :
+1. **Unité argileuse (bas de pente) :** Boues déposées au fond d'un lac d'eau douce au pH neutre.
+2. **Unité sulfatée (pentes moyennes) :** Évaporation progressive et précipitation de sels lors de l'assèchement de la planète.
+3. **Zone *Boxwork* (pentes supérieures) :** Réseau polygonal de crêtes rocheuses indurées par des sulfates hydratés et des oxydes de fer, témoignant des dernières circulations d'eaux souterraines dans d'anciennes fractures.
+
+**Architecture d'exploration :** Un astronaute équipé d'un scaphandre **xEMU** à visière HUD en réalité augmentée réalise une reconnaissance géologique assistée d'un **mini-rover éclaireur** (portant $35\text{ kg}$ d'instrumentation : spectromètre de contact, carottier léger, LiDAR frontal et mât météorologique *MEDA*).
+
+---
+
+## 2. Fusion des 5 couches de données NASA
+
+| # | Instrument / Mission | Grandeur physique | Code visuel HUD | Rôle opérationnel |
+| :--- | :--- | :--- | :--- | :--- |
+| **1** | **MRO HiRISE & MOLA** | Altitude $z(x,y)$ et pente $\theta$ | Lignes de crête + hachures rouges ($\theta > 20^\circ$) | Prévention des chutes et du basculement du mini-rover |
+| **2** | **Odyssey THEMIS (IR)** | Inertie thermique $I = \sqrt{k\rho c_p}$ | Trame alvéolée orange ($I < 120$) | Détection des pièges à sable meuble entre les crêtes |
+| **3** | **MRO CRISM** | Réflectance ($0,36\text{–}3,92\;\mu\text{m}$) | Halo cyan verrouillé sur les veines | Ciblage des crêtes riches en sulfates et oxydes de fer |
+| **4** | **Curiosity RAD & MAVEN** | Débit de dose ($\text{mSv/h}$) | Bandeau supérieur + zone d'abri verte | Gestion du budget radiologique et repli en cas d'alerte *SEP* |
+| **5** | **Perseverance MEDA** | Vent $v$, pression $P$, opacité $\tau$ | Vecteur vent + boost AR si $\tau > 0,8$ | Suivi de la saltation, alerte *dust devil* et nettoyage *EDS* |
+
+---
+
+## 3. Modèles physiques intégrés au navigateur EVA
+
+### A. Biomécanique de marche et gain du mini-rover ($g_{\text{Mars}} = 3,72\text{ m/s}^2$)
+* **Bilan de masse inertielle :** $185\text{ kg}$ ($75\text{ kg}$ astronaute + $110\text{ kg}$ scaphandre *xEMU*). Le transfert de $35\text{ kg}$ d'outillage sur le mini-rover réduit la dépense métabolique de marche de **$22\,\%$**.
+* **Vitesse effective selon la pente $\theta$ (*HiRISE*) :**
+  $$v(\theta) = v_0 \, e^{-3,5 \, |\tan\theta + 0,05|}, \quad v_0 = 1,1\text{ m/s}$$
+* **Seuils limites :** Pente max astronaute $= 20^\circ$ ; pente max mini-rover $= 25^\circ$.
+
+### B. Autonomie vitale ($\text{O}_2$ et métabolisme)
+* **Réserve PLSS utilisable :** $650\text{ g}$ d'$\text{O}_2$ ($\approx 7\text{ h }30$ en effort modéré).
+* **Consommation :** $0,75\text{ g/min}$ en mode `SCIENCE` ($250\text{ W}$), $1,25\text{ g/min}$ en mode `TRANSIT` sur roche dure ($420\text{ W}$), $1,80\text{ g/min}$ en terrain meuble ($600\text{ W}$). Règle de retour déclenchée sous $50\,\%$ de réserve dynamique.
+
+### C. Radiations et abri topographique (*RAD / MAVEN*)
+* **Fond galactique (GCR) nominal :** $\dot{D}_0 \approx 0,027\text{ mSv/h}$ ($0,64\text{ mSv/jour}$).
+* **Atténuation géométrique par les parois :** Lorsqu'un escarpement masque le ciel jusqu'à un angle d'élévation moyen $\alpha$, la roche réduit le flux incident :
+  $$\dot{D}_{\text{eff}} = \dot{D}_0 \left(1 - 0,85 \sin\alpha\right)$$
+
+### D. Météo locale et Vision Synthétique (*MEDA*)
+* Atténuation du flux solaire selon la loi de Beer-Lambert-Bouguer : $I = I_0 \, e^{-\tau / \cos\theta_z}$.
+* Dès que l'opacité atmosphérique dépasse $\tau = 0,8$, le HUD bascule automatiquement en mode **`TEMPÊTE` (Vision Synthétique AR)** en renforçant le contraste des arêtes *HiRISE* et des zones *THEMIS*, tandis qu'un bouclier électrodynamique (**EDS**) repousse la poussière chargée de la visière.
+
+---
+
+## 4. Algorithme de trajectoire et projection AR
+
+1. **Fonction de coût de traversée :** Pour relier les waypoints sans couper à travers les cuvettes sableuses, l'algorithme évalue chaque cellule $(x,y)$ de la grille de $1\,200\text{ m} \times 900\text{ m}$ selon :
+   $$C(x,y) = d \times \Big(1 + k_{\text{pente}}\,\tan^2\theta + k_{\text{sable}}(I)\Big)$$
+   Toute cellule vérifiant $\theta > 20^\circ$ ou $I < 120$ reçoit un coût infini ($C = +\infty$), forçant l'itinéraire à suivre le sommet porteur des crêtes *boxwork*.
+2. **Projection perspective conforme :** Depuis la hauteur d'œil du scaphandre ($h_{\text{yeux}} \approx 1,75\text{ m}$), chaque point du terrain est projeté sur la visière selon son azimut relatif $\Delta\psi$ et son angle d'élévation $\phi = \arctan\!\left(\frac{z - (z_a + h_{\text{yeux}})}{d}\right)$, tout en laissant la **zone fovéale centrale ($20^\circ$)** libre de tout texte fixe.
+
+---
+
+## 5. Plan de route EVA (Boucle sécurisée de $1\,350\text{ m}$ — Durée : $3\text{ h }15$)
+
+| Waypoint | Secteur & Altitude | Signature capteurs NASA | Arbitrage Science / Sécurité |
+| :--- | :--- | :--- | :--- |
+| **WP1 — Base *Ares-VII*** | Plat rocheux ($0\text{ m}, z = 0\text{ m}$) | $\theta = 3^\circ$, $I = 310$ | Initialisation télémétrie mini-rover (`SUIVI`) et relevé $\tau$ initial. |
+| **WP2 — Bordure Alvéole Sud** | Entrée *boxwork* ($+320\text{ m}, z = +18\text{ m}$) | $\theta = 11^\circ$, $I = 95$ au centre | Contournement par la crête dure pour éviter le piège à sable central. |
+| **WP3 — Crête Principale** | Jonction de 3 veines ($+610\text{ m}, z = +42\text{ m}$) | Pic spectral *CRISM* ($92\,\%$) | Mode `SCIENCE`, analyse spectrale au contact et prélèvement. |
+| **WP4 — Escarpement *Gediz*** | Paroi verticale ($+890\text{ m}, z = +58\text{ m}$) | Paroi $68^\circ$, masquage $\alpha = 42^\circ$ | Étude stratigraphique + abri naturel réduisant la dose RAD de $34\,\%$. |
+| **WP5 — Corridor Ouest** | Crête descendante ($+1\,350\text{ m} \rightarrow \text{Base}$) | Pente $-7^\circ$, vent catabatique | Retour avant le seuil de $50\,\%$ d'$\text{O}_2$ avec assistance AR. |
+
+---
+
+## 6. Vérité terrain NASA (`docs/assets/`)
+* `01_hirise_boxwork_map.png` — Mosaïque orbitale *MRO HiRISE* ($25\text{ cm/pixel}$) sur `-4.74, 137.85` (*NASA Mars Trek*).
+* `02_themis_thermal_overlay.png` — Superposition *Mars Odyssey THEMIS Nighttime IR* mettant en évidence les crêtes chaudes et le sable froid.
+* `03_slope_elevation_profile.png` — Carte des pentes (*Slope Map*) et profil topographique vérifiant $\theta < 20^\circ$.
+* `04_curiosity_pov_boxwork.png` — Vue au sol prise par *Curiosity* (*Mastcam* / *Navcam*, Sols 4400–4550) illustrant la perspective réelle à hauteur d'œil.
